@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   minWidth="955" minHeight="600">
+	
+	<s:layout>
+		<s:VerticalLayout paddingTop="10" paddingBottom="10"
+						  paddingLeft="10" paddingRight="10"/>
+	</s:layout>
+	
+	<fx:Script>
+		<![CDATA[
+			import org.osmf.events.MediaPlayerStateChangeEvent;
+			import org.osmf.events.TimeEvent;
+			import org.osmf.media.MediaPlayerState;
+			
+			private const MEDIA_SOURCE:String = "assets/media/mp4_110612.mp4";
+			
+			// 비디오 상태 변화
+			private function mediaStateChange(event:MediaPlayerStateChangeEvent):void
+			{
+				/*
+				loading
+				ready
+				buffering
+				playing
+				*/
+				//trace(event.state);
+				
+				switch (event.state) {
+					case MediaPlayerState.READY :
+						playSlider.enabled = true;
+						volumSlider.value = int(vd.volume * 100);
+						break;
+					case MediaPlayerState.LOADING :
+						playSlider.enabled = false;
+						break;
+				}
+			}
+			
+			// 현재 진행시간
+			private function currentTimeChangeHandler(event:TimeEvent):void
+			{
+				//playSlider.value = event.time;
+			}
+			
+			// 비디오 재생 / 일시정지
+			private function videoPlay(event:MouseEvent):void
+			{
+				if (!vd.playing)
+					vd.play();
+				else
+					vd.pause();
+				
+				btnPlay.label = (vd.playing)?"Pause":"Play";
+			}
+			
+			// 비디오 정지
+			private function videoStop(event:MouseEvent):void
+			{
+				vd.stop();
+			}
+			
+			// 음소거
+			private function soundMute(event:Event):void
+			{
+				vd.muted = btnMute.selected;
+			}
+			
+			// 소리 조절
+			private function volumChange(event:Event):void
+			{
+				//vd.volume = volumSlider.value / 100;
+			}
+			
+			private function durationChangeHandler(event:TimeEvent):void
+			{
+				trace(event.time);
+				if (event.time)
+					playSlider.maximum = event.time;
+			}
+			
+			private function playSlider_changeHandler(event:Event):void
+			{
+				if (vd.currentState != MediaPlayerState.LOADING)
+					vd.seek(playSlider.value);
+			}
+			
+			private function playTimeDataTipFunc(value:Number):Object
+			{
+				var time:String = "";
+				
+				var hour:int = value / 3600;
+				var min:int = (value % 3600) / 60;
+				var sec:int = (value % 60) % 60;
+				
+				time += (hour > 10)?hour+":":"0"+hour+":";
+				time += (min > 10)?min+":":"0"+min+":";
+				time += (sec > 10)?sec:"0"+sec;
+				return time;
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<s:HGroup>
+		<s:VGroup>
+			<s:Label text="autoPlay : true"/>
+			<s:VideoDisplay source="{MEDIA_SOURCE}"
+							width="300"
+							autoPlay="true"
+							volume="0"/>
+		</s:VGroup>
+		<s:VGroup>
+			<s:Label text="autoPlay : false"/>
+			<s:VideoDisplay source="{MEDIA_SOURCE}"
+							width="300"
+							autoPlay="false"
+							volume="0"/>
+		</s:VGroup>
+		<s:VGroup>
+			<s:Label text="autoPlay : false, autoDisplayFirstFrame : false"/>
+			<s:VideoDisplay source="{MEDIA_SOURCE}"
+							width="300"
+							autoPlay="false"
+							autoDisplayFirstFrame="false"
+							volume="0"/>
+		</s:VGroup>
+	</s:HGroup>
+	
+	<s:HGroup>
+		<s:VGroup>
+			<s:VideoDisplay id="vd"
+							source="{MEDIA_SOURCE}"
+							width="500"
+							autoPlay="false"
+							autoRewind="false"
+							mediaPlayerStateChange="mediaStateChange(event)"
+							currentTimeChange="currentTimeChangeHandler(event)"
+							durationChange="durationChangeHandler(event)"/>
+			
+			<s:HSlider id="playSlider" width="100%" stepSize=".1" enabled="false"
+					   value="{vd.currentTime}"
+					   dataTipFormatFunction="playTimeDataTipFunc"
+					   change="playSlider_changeHandler(event)"/>
+			
+			<s:HGroup verticalAlign="middle">
+				<s:Button id="btnPlay" label="Play" click="videoPlay(event)"/>
+				<s:Button label="Stop" click="videoStop(event)"/>
+				<s:ToggleButton id="btnMute" label="Mute" change="soundMute(event)"/>
+				<s:Spacer width="10"/>
+				<s:Label text="Volum : "/>
+				<s:HSlider id="volumSlider" maximum="100" minimum="0"
+						   value="{vd.volume}"
+						   change="volumChange(event)"/>
+			</s:HGroup>
+		</s:VGroup>
+	</s:HGroup>
+	
+</s:Application>

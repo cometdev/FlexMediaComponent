@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<s:SparkSkin xmlns:fx="http://ns.adobe.com/mxml/2009"
+			 xmlns:s="library://ns.adobe.com/flex/spark"
+			 xmlns:fb="http://ns.adobe.com/flashbuilder/2009"
+			 alpha.disabledStates="0.5">
+	
+	<fx:Metadata>
+		<![CDATA[ 
+		[HostComponent("spark.components.ToggleButton")]
+		]]>
+	</fx:Metadata>
+	
+	<s:states>
+		<s:State name="up" />
+		<s:State name="over" stateGroups="overStates" />
+		<s:State name="down" stateGroups="downStates" />
+		<s:State name="disabled" stateGroups="disabledStates" />
+		<s:State name="upAndSelected" stateGroups="selectedStates, selectedUpStates" />
+		<s:State name="overAndSelected" stateGroups="overStates, selectedStates" />
+		<s:State name="downAndSelected" stateGroups="downStates, selectedStates" />
+		<s:State name="disabledAndSelected" stateGroups="selectedUpStates, disabledStates, selectedStates" />
+	</s:states>
+	
+	<s:Rect top="0" bottom="0" left="0" right="0"
+			radiusX="2" radiusY="2">
+		<s:stroke>
+			<s:SolidColorStroke color="0x202020" />
+		</s:stroke>
+	</s:Rect>
+	<s:Rect top="1" bottom="1" left="1" right="1"
+			radiusX="2" radiusY="2">
+		<s:stroke>
+			<s:SolidColorStroke color="0x606060" />
+		</s:stroke>
+		<s:fill>
+			<s:LinearGradient rotation="90">
+				<s:GradientEntry color="0x303030" 
+								 color.down="0x202020"
+								 alpha="0.01"
+								 alpha.down="0" />
+				<s:GradientEntry color="0x202020" 
+								 color.down="0x000000" 
+								 alpha="0.07"
+								 alpha.down="0.5" />
+			</s:LinearGradient>
+		</s:fill>
+	</s:Rect>
+	
+	<s:BitmapImage horizontalCenter="0" verticalCenter="0"
+				   source="@Embed('assets/images/btn_random.png')"
+				   source.over="@Embed('assets/images/btn_random_over.png')"
+				   source.down="@Embed('assets/images/btn_random_down.png')"
+				   source.selectedStates="@Embed('assets/images/btn_random_over.png')"
+				   alpha="0.5"
+				   alpha.selectedStates="1.0"
+				   width="12" height="12"/>
+	
+</s:SparkSkin>

@@ -1,0 +1,497 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   xmlns:comp="com.flexcomponent.component.*"
+			   width="300" height="150"
+			   maxWidth="300" maxHeight="150"
+			   minWidth="300" minHeight="150"
+			   initialize="init(event)"
+			   skinClass="com.flexcomponent.skin.MP3PlayerAppSkin"
+			   enterFrame="onEnterFrameHandler(event)">
+	
+	<fx:Style source="assets/style/style.css"/>
+	
+	<fx:Script>
+		<![CDATA[
+			import com.flexcomponent.util.StringUtil;
+			
+			import mx.collections.XMLListCollection;
+			import mx.controls.List;
+			import mx.core.mx_internal;
+			import mx.events.FlexEvent;
+			
+			import spark.events.IndexChangeEvent;
+			
+			private const BUFFER_TIME:uint = 5000;
+			private const DEFAULT_DISP_TIME:String = "00:00";
+			private const UNKNOW:String = "Unknown";
+			private const LEFT_SPECTRUM_COLOR:uint = 0xff2c61;
+			private const RIGHT_SPECTRUM_COLOR:uint = 0xadff2c;
+			
+			[Bindable]
+			private var _playList:XMLListCollection;
+			[Bindable]
+			private var _sound:Sound;
+			[Bindable]
+			private var _channel:SoundChannel;
+			private var _position:int;
+			
+			[Bindable]
+			private var sndTitle:String;
+			[Bindable]
+			private var sndAlbum:String;
+			[Bindable]
+			private var sndArtist:String;
+			[Bindable]
+			private var sndGenre:String;
+			[Bindable]
+			private var sndYear:String;
+			
+			// App Init
+			private function init(event:FlexEvent):void
+			{
+				var loader:URLLoader = new URLLoader();
+				var request:URLRequest = new URLRequest("assets/xml/mp3_list.xml");
+				loader.addEventListener(Event.COMPLETE, xmlLoadComplete);
+				loader.load(request);
+			}
+			
+			private function xmlLoadComplete(event:Event):void
+			{
+				var xml:XML = new XML(event.target.data);
+				_playList = new XMLListCollection(new XMLList(xml.item));
+				ddl_playList.dataProvider = _playList;
+			}
+			
+			/*************************************************************************
+			 * Method
+			 ************************************************************************/
+			// Play
+			private function play(startTime:Number = -1):void
+			{
+				if (_playList.length > 0)
+				{
+					if (_sound == null)
+					{
+						var request:URLRequest = new URLRequest(ddl_playList.selectedItem.url);
+						var soundLoaderContext:SoundLoaderContext = new SoundLoaderContext();
+						soundLoaderContext.bufferTime = BUFFER_TIME;
+						soundLoaderContext.checkPolicyFile = true;
+						_sound = new Sound(request, soundLoaderContext);
+						_sound.addEventListener(IOErrorEvent.IO_ERROR, ioErrorHandler);
+						_sound.addEventListener(Event.ID3, id3Handler);
+					}
+					
+					if (btn_play.selected)
+					{
+						_channel = (startTime > -1)?_sound.play(startTime):(_position > 0)?_sound.play(_position):_sound.play();
+					}
+					else
+					{
+						if (_channel == null)
+							return;
+						_position = (startTime > -1)?_channel.position:startTime;
+						_channel.stop();
+					}
+					
+					volumChange();
+					_channel.addEventListener(Event.SOUND_COMPLETE, soundCompleteHandler);
+				}
+			}
+			
+			// Play List Control
+			private function playListControl(value:int = 0):void
+			{
+				if (value < 0 || value >= _playList.length)
+					value = 0;
+				
+				ddl_playList.selectedIndex = value;
+				playInit(); // Play Init
+				play();
+			}
+			
+			// Play Init
+			// Play 정보 초기화
+			private function playInit():void
+			{
+				if (_channel != null)
+					_channel.stop();
+				
+				_channel = null;
+				_sound = null;
+				_position = 0;
+				loaddedByteBar.width = 0;
+				playPosition.width = 0;
+				playTime.text = DEFAULT_DISP_TIME;
+				totalTime.text = DEFAULT_DISP_TIME;
+				
+				// ID3 Info
+				sndTitle = "";
+				sndAlbum = "";
+				sndArtist = "";
+				sndGenre = "";
+				sndYear = "";
+			}
+			
+			// 다음곡 플레이 (랜덤일 경우 랜덤 플레이)
+			private function nextPlay():void
+			{
+				if (!btn_random.selected)
+					_playedList = [];
+				
+				var playNum:uint = (btn_random.selected)?randomPlay():ddl_playList.selectedIndex+1;
+				playListControl(playNum);
+			}
+			
+			private var _playedList:Array = []; // 랜덤 플레이시 이미 재생된 곡 리스트
+			
+			// 이미 재생된 곡을 제외한 나머지에서 랜덤 플레이
+			private function randomPlay():uint
+			{
+				var playNum:uint = 0;
+				var duplicateFlag:Boolean = true;
+				
+				if (_playedList.length >= _playList.length)
+					_playedList = [];
+				
+				while (duplicateFlag) {
+					duplicateFlag = false;
+					playNum = uint(Math.random() * _playList.length);
+					
+					for (var i:int = 0; i < _playedList.length; i++)
+					{
+						if (_playedList[i] == playNum)
+							duplicateFlag = true;
+					}
+				}
+				
+				_playedList.push(playNum);
+				
+				return playNum;
+			}
+			
+			// Sound Volum Control
+			private function soundVolumChange(value:Number):void
+			{
+				var transform:SoundTransform = new SoundTransform();
+				transform.pan = soundPan.value;
+				transform.volume = value;
+				_channel.soundTransform = transform;
+			}
+			
+			/*************************************************************************
+			 * Event Handler
+			 ************************************************************************/
+			// OnEnterFrame Handler
+			// EnterFrame으로 현재 플레이 상태 체크
+			private function onEnterFrameHandler(event:Event):void
+			{
+				if (_channel == null || _sound == null)
+					return;
+				
+				var loaded:int = _sound.bytesLoaded;
+				var total:int = _sound.bytesTotal;
+				var length:int = _sound.length
+				var position:int = _channel.position;
+				
+				if (total > 0)
+				{
+					var percentBuffered:Number = loaded / total;
+					length /= percentBuffered;
+					var percentPlayed:Number = position / length;
+					loaddedByteBar.percentWidth = percentBuffered * 100;
+					
+					if (btn_play.selected)
+						playPosition.percentWidth = percentPlayed * 100;
+					
+					// Play Time Cal
+					var playSec:uint = _channel.position / 1000;
+					var totalSec:uint = (_sound.length * _sound.bytesTotal) / _sound.bytesLoaded / 1000; 
+					playTime.text = StringUtil.twoChar(uint(playSec / 60)) + ":" + StringUtil.twoChar(uint(playSec % 60));
+					totalTime.text = StringUtil.twoChar(uint(totalSec / 60)) + ":" + StringUtil.twoChar(uint(totalSec % 60));
+				}
+				
+				// spectrum
+				var spectrum:ByteArray = new ByteArray();
+				SoundMixer.computeSpectrum(spectrum);
+				
+				var i:int = 0;
+				
+				specSprite.graphics.clear();
+				
+				// left sound
+				for (i = 0; i < 256; i++)
+				{
+					specSprite.graphics.beginFill(LEFT_SPECTRUM_COLOR, .3);
+					specSprite.graphics.drawRect(int(specSprite.width / 256 * i), specSprite.height / 2, 1, spectrum.readFloat() * specSprite.height / 2);
+					specSprite.graphics.endFill();
+				}
+				
+				// right sound
+				for (i = 0; i < 256; i++)
+				{
+					specSprite.graphics.beginFill(RIGHT_SPECTRUM_COLOR, .3);
+					specSprite.graphics.drawRect(int(specSprite.width / 256 * i), specSprite.height / 2, 1, spectrum.readFloat() * specSprite.height / 2);
+					specSprite.graphics.endFill();
+				}
+				
+			}
+			
+			// Mouse Down Check Flag
+			private var mouseDownFlag:Boolean = false;
+			
+			// PlayBar Click Handler
+			private function playBarHandler(event:MouseEvent):void
+			{
+				var enableFlag:Boolean = false;
+				
+				switch (event.type) {
+					case MouseEvent.CLICK :
+						enableFlag = true;
+						break;
+					case MouseEvent.MOUSE_DOWN :
+						mouseDownFlag = true;
+						break;
+					case MouseEvent.MOUSE_UP :
+					case MouseEvent.MOUSE_OUT :
+						mouseDownFlag = false;
+						return;
+						break;
+					case MouseEvent.MOUSE_MOVE :
+						enableFlag = mouseDownFlag;
+						break;
+				}
+				
+				if (loaddedByteBar.width > event.localX && enableFlag)
+				{
+					_channel.stop();
+					playPosition.width = event.localX;
+					play(_sound.length * playPosition.width / loaddedByteBar.width);
+				}
+			}
+			
+			// Sound Complete Handler
+			// Sound 재생 완료시 반복여부 판단후 플레이
+			private function soundCompleteHandler(event:Event):void
+			{
+				if (btn_replay.selected)
+					playListControl(ddl_playList.selectedIndex);
+				else
+					nextPlay();
+			}
+			
+			// Sound IO Error Handler
+			// Sound 파일 로드 실패시 다음 파일 재생
+			private function ioErrorHandler(event:IOErrorEvent):void
+			{
+				btn_replay.selected = false;
+				nextPlay();
+			}
+			
+			// Play List Change Handler
+			private function playListChangeHandler(event:Event):void
+			{
+				playInit(); // Play Init
+				play();
+			}
+			
+			// Volum Change Handler
+			private function volumChange():void
+			{
+				volumControl.enabled = (btn_sound.selected)?false:true;
+				var volum:Number = (btn_sound.selected)?0:volumControl.volum;
+				soundVolumChange(volum);
+			}
+			
+			// Sound ID3 Tag Read Handler
+			private function id3Handler(event:Event):void
+			{
+				if (_sound != null)
+				{
+					// UTF-8
+					sndTitle = (_sound.id3.songName)?_sound.id3.songName:UNKNOW;
+					sndAlbum = (_sound.id3.album)?_sound.id3.album:UNKNOW;
+					sndArtist = (_sound.id3.artist)?_sound.id3.artist:UNKNOW;
+					sndGenre = (_sound.id3.genre)?_sound.id3.genre:UNKNOW;
+					sndYear = (_sound.id3.year)?_sound.id3.year:UNKNOW;
+				}
+			}
+		]]>
+	</fx:Script>
+	
+	<s:layout>
+		<s:VerticalLayout />
+	</s:layout>
+	
+	<s:Label text="Flex Component Cafe MP3 Player Demo"
+			 styleName="title"/>
+	
+	<!-- Info -->
+	<s:Group width="100%" height="50">
+		<s:layout>
+			<s:HorizontalLayout paddingTop="5" paddingBottom="5"
+								paddingLeft="5" paddingRight="5"
+								gap="1"/>
+		</s:layout>
+		
+		<s:VGroup width="100%">
+			<s:HGroup width="100%" gap="2">
+				<s:Label text="Title." width="40" maxDisplayedLines="1" styleName="soundInfoTitle"/>
+				<s:Label text="{sndTitle}" maxDisplayedLines="1" width="100%" styleName="soundInfo"/>
+			</s:HGroup>
+			<s:HGroup width="100%" gap="2">
+				<s:Label text="Artist." width="40" maxDisplayedLines="1" styleName="soundInfoTitle"/>
+				<s:Label text="{sndArtist}" width="100%" maxDisplayedLines="1" styleName="soundInfo"/>
+			</s:HGroup>
+			<s:HGroup width="100%" gap="2">
+				<s:Label text="Genre." width="40" maxDisplayedLines="1" styleName="soundInfoTitle"/>
+				<s:Label text="{sndGenre}" width="100%" maxDisplayedLines="1" styleName="soundInfo"/>
+			</s:HGroup>
+		</s:VGroup>
+		<s:Group width="100%" height="100%">
+			<s:Rect top="0" bottom="0" left="0" right="0"
+					radiusX="3" radiusY="3">
+				<s:stroke>
+					<s:SolidColorStroke color="0xFFFFFF" alpha=".1"/>
+				</s:stroke>
+			</s:Rect>
+			<s:Rect top="1" bottom="1" left="1" right="1"
+					radiusX="3" radiusY="3">
+				<s:stroke>
+					<s:SolidColorStroke color="0x000000" alpha=".5"/>
+				</s:stroke>
+				<s:fill>
+					<s:SolidColor color="0x000000" alpha=".3"/>
+				</s:fill>
+			</s:Rect>
+			<s:SpriteVisualElement id="specSprite"
+								   top="3" bottom="3" left="3" right="3"/>
+		</s:Group>
+	</s:Group>
+	
+	<!-- Control -->
+	<s:Group width="100%">
+		<s:layout>
+			<s:HorizontalLayout verticalAlign="middle"
+								gap="1"/>
+		</s:layout>
+		<s:Button width="20" height="20"
+				  skinClass="com.flexcomponent.skin.Btn_BeforeSkin"
+				  enabled="{ddl_playList.selectedIndex != 0}"
+				  click="playListControl(ddl_playList.selectedIndex-1)"/>
+		<s:Button width="20" height="20"
+				  enabled="{(_playList.length != ddl_playList.selectedIndex + 1)}"
+				  skinClass="com.flexcomponent.skin.Btn_AfterSkin"
+				  click="playListControl(ddl_playList.selectedIndex + 1)"/>
+		<s:ToggleButton id="btn_play"
+						width="20" height="20"
+						skinClass="com.flexcomponent.skin.TBtn_PlayPauseSkin"
+						click="play()"/>
+		<s:Group width="100%">
+			<s:layout>
+				<s:VerticalLayout gap="1"/>
+			</s:layout>
+			
+			<!-- PlayBar -->
+			<s:Group id="playBar"
+					 width="100%" height="5"
+					 click="playBarHandler(event)"
+					 mouseMove="playBarHandler(event)"
+					 mouseOut="playBarHandler(event)"
+					 mouseDown="playBarHandler(event)"
+					 mouseUp="playBarHandler(event)">
+				<s:Rect id="playBarBackground"
+						top="0" bottom="0" left="0" right="0">
+					<s:stroke>
+						<s:LinearGradientStroke rotation="90">
+							<s:GradientEntry color="0x202020"/>
+							<s:GradientEntry color="0x000000"/>
+						</s:LinearGradientStroke>
+					</s:stroke>
+					<s:fill>
+						<s:SolidColor color="0x303030"/>
+					</s:fill>
+				</s:Rect>
+				<s:Rect id="loaddedByteBar" top="1" bottom="1" left="1" width="0">
+					<s:fill>
+						<s:SolidColor color="0x555555"/>
+					</s:fill>
+				</s:Rect>
+				<s:Rect id="playPosition" top="1" bottom="1" left="1" width="0">
+					<s:fill>
+						<s:LinearGradient rotation="90">
+							<s:GradientEntry color="0xd1ff62" ratio="0"/>
+							<s:GradientEntry color="0xd1ff62" ratio="0.5"/>
+							<s:GradientEntry color="0x79b200" ratio="0.5"/>
+							<s:GradientEntry color="0x79b200" ratio="1.0"/>
+						</s:LinearGradient>
+					</s:fill>
+				</s:Rect>
+			</s:Group>
+			
+			<!-- Display Time -->
+			<s:Group width="100%" height="100%">
+				<s:layout>
+					<s:HorizontalLayout verticalAlign="middle"/>
+				</s:layout>
+				
+				<s:Label id="playTime"
+						 text="{DEFAULT_DISP_TIME}" styleName="dispTime"/>
+				<mx:Spacer width="100%"/>
+				<s:Label id="totalTime"
+						 text="{DEFAULT_DISP_TIME}" styleName="dispTime"/>
+			</s:Group>
+			
+		</s:Group>
+		<s:ToggleButton id="btn_replay"
+						width="20" height="20"
+						skinClass="com.flexcomponent.skin.TBtn_ReplaySkin"/>
+		<s:ToggleButton id="btn_random"
+						width="20" height="20"
+						skinClass="com.flexcomponent.skin.TBtn_RandomSkin"/>
+	</s:Group>
+	
+	<s:Group width="100%">
+		<s:layout>
+			<s:HorizontalLayout verticalAlign="middle"
+								gap="1"/>
+		</s:layout>
+		
+		<s:DropDownList id="ddl_playList"
+						width="100%"
+						labelField="title"
+						selectedIndex="0"
+						color="0xFFFFFF"
+						selectionColor="0x000000"
+						rollOverColor="0x000000"
+						contentBackgroundColor="0x333333"
+						contentBackgroundAlpha="0.8"
+						symbolColor="0xbaff00"
+						skinClass="com.flexcomponent.skin.DDL_PlayListSkin"
+						change="playListChangeHandler(event)"/>
+		
+		<mx:Spacer width="5"/>
+		
+		<!-- Sound Pan -->
+		<s:Label text="L" color="0xd5ff93" styleName="soundPan"/>
+		<s:HSlider id="soundPan"
+				   minimum="-1.0" maximum="1.0"
+				   width="50" stepSize="0.1" liveDragging="true" showDataTip="false"
+				   skinClass="com.flexcomponent.skin.HSlider_SounPanSkin"
+				   change="volumChange()"/>
+		<s:Label text="R" color="0xffe993" styleName="soundPan"/>
+		
+		<mx:Spacer width="5"/>
+		
+		<!-- Volum control -->
+		<s:ToggleButton id="btn_sound"
+						width="17" height="16"
+						skinClass="com.flexcomponent.skin.TBtn_SoundSkin"
+						change="volumChange()"/>
+		<comp:VolumControl id="volumControl"
+						   volum="0.6"
+						   volumChange="volumChange()"/>
+	</s:Group>
+	
+</s:Application>

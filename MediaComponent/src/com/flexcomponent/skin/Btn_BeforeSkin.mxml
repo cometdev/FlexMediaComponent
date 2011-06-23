@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<s:SparkSkin xmlns:fx="http://ns.adobe.com/mxml/2009"
+			 xmlns:s="library://ns.adobe.com/flex/spark" 
+             xmlns:fb="http://ns.adobe.com/flashbuilder/2009"
+			 alpha.disabled="0.5">
+    
+    <fx:Metadata>
+        <![CDATA[ 
+        [HostComponent("spark.components.Button")]
+        ]]>
+    </fx:Metadata>
+    
+    <!-- states -->
+    <s:states>
+        <s:State name="up" />
+        <s:State name="over" />
+        <s:State name="down" />
+        <s:State name="disabled" />
+    </s:states>
+	<s:Rect top="0" bottom="0" left="0" right="0"
+			radiusX="2" radiusY="2">
+		<s:stroke>
+			<s:SolidColorStroke color="0x202020" />
+		</s:stroke>
+	</s:Rect>
+	<s:Rect top="1" bottom="1" left="1" right="1"
+			radiusX="2" radiusY="2">
+		<s:stroke>
+			<s:SolidColorStroke color="0x606060" />
+		</s:stroke>
+		<s:fill>
+			<s:LinearGradient rotation="90">
+				<s:GradientEntry color="0x303030" 
+								 color.down="0x202020"
+								 alpha="0.01"
+								 alpha.down="0" />
+				<s:GradientEntry color="0x202020" 
+								 color.down="0x000000" 
+								 alpha="0.07"
+								 alpha.down="0.5" />
+			</s:LinearGradient>
+		</s:fill>
+	</s:Rect>
+	
+	<s:Group horizontalCenter="0" verticalCenter="0">
+		<s:layout>
+			<s:HorizontalLayout gap="0"/>
+		</s:layout>
+		
+		<s:Path verticalCenter="0"
+				data="M 5.0 0.0 L 0.0 4.0 L 5.0 8.0 L 5.0 0.0">
+			<s:fill>
+				<s:SolidColor color="0xFFFFFF"
+							  color.over="0xb4ff00"
+							  color.down="0x000000"/>
+			</s:fill>
+		</s:Path>
+		<s:Path verticalCenter="0"
+				data="M 5.0 0.0 L 0.0 4.0 L 5.0 8.0 L 5.0 0.0">
+			<s:fill>
+				<s:SolidColor color="0xFFFFFF"
+							  color.over="0xb4ff00"
+							  color.down="0x000000"/>
+			</s:fill>
+		</s:Path>
+		
+	</s:Group>
+	
+</s:SparkSkin>

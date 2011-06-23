@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Graphic version="1.0" viewHeight="52.748" viewWidth="47.1543" d:id="1" xmlns="http://ns.adobe.com/fxg/2008" xmlns:d="http://ns.adobe.com/fxg/2008/dt">
+  <Group d:type="layer" d:userLabel="Layer 1">
+    <Rect x="0.5" y="0.5" width="46.1543" height="51.748">
+      <fill>
+        <SolidColor color="#ffffff"/>
+      </fill>
+      <stroke>
+        <SolidColorStroke caps="none" weight="1" joints="miter" miterLimit="4"/>
+      </stroke>
+    </Rect>
+  </Group>
+  <Private>
+    <ai:PrivateElement d:ref="#1" xmlns:ai="http://ns.adobe.com/ai/2008"/>
+  </Private>
+</Graphic>
